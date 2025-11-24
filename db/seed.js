@@ -1,7 +1,6 @@
-require("dotenv").config({ path: ".env.local" });
-
-const { Pool } = require("pg");
-const bcrypt = require("bcryptjs");
+import "dotenv/config";
+import { Pool } from "pg";
+import bcrypt from "bcryptjs";
 
 const personalities = [
   "Enthusiastic tech enthusiast who loves discussing gadgets and programming",
@@ -139,4 +138,3 @@ async function seedAIUsers() {
 }
 
 seedAIUsers();
-
