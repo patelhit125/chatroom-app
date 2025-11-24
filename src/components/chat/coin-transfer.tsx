@@ -44,15 +44,27 @@ export function CoinTransfer({
 
   const fetchCoins = async () => {
     try {
-      const res = await fetch("/api/coins/balance");
+      const res = await fetch("/api/coins/balance", {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       if (res.ok) {
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
-          const data = await res.json();
-          setCoins(data.coins || 0);
+          try {
+            const data = await res.json();
+            setCoins(data.coins || 0);
+          } catch (parseError) {
+            console.error("Failed to parse coins balance response:", parseError);
+          }
         } else {
-          console.error("Invalid response type from coins balance API");
+          const text = await res.text();
+          console.error("Invalid response type from coins balance API:", text.substring(0, 100));
         }
+      } else {
+        console.error("Coins balance API error:", res.status, res.statusText);
       }
     } catch (error) {
       console.error("Failed to fetch coins:", error);

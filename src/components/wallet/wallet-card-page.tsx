@@ -13,7 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatPoints, formatSeconds } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Wallet, Plus, Clock, TrendingUp, Coins, ArrowRight } from "lucide-react";
+import {
+  Wallet,
+  Plus,
+  Clock,
+  TrendingUp,
+  Coins,
+  ArrowRight,
+} from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface WalletCardPageProps {
@@ -38,29 +45,70 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
   const fetchBalance = async () => {
     try {
       const [balanceRes, coinsRes] = await Promise.all([
-        fetch("/api/wallet/balance"),
-        fetch("/api/coins/balance"),
+        fetch("/api/wallet/balance", {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+        fetch("/api/coins/balance", {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
       ]);
-      
+
       if (balanceRes.ok) {
         const contentType = balanceRes.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
-          const data = await balanceRes.json();
-          setPoints(data.points);
-          setSeconds(data.seconds);
+          try {
+            const data = await balanceRes.json();
+            setPoints(data.points || 0);
+            setSeconds(data.seconds || 0);
+          } catch (parseError) {
+            console.error("Failed to parse balance response:", parseError);
+          }
         } else {
-          console.error("Invalid response type from balance API");
+          const text = await balanceRes.text();
+          console.error(
+            "Invalid response type from balance API:",
+            text.substring(0, 100)
+          );
         }
+      } else {
+        console.error(
+          "Balance API error:",
+          balanceRes.status,
+          balanceRes.statusText
+        );
       }
-      
+
       if (coinsRes.ok) {
         const contentType = coinsRes.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
-          const coinsData = await coinsRes.json();
-          setCoins(coinsData.coins || 0);
+          try {
+            const coinsData = await coinsRes.json();
+            setCoins(coinsData.coins || 0);
+          } catch (parseError) {
+            console.error(
+              "Failed to parse coins balance response:",
+              parseError
+            );
+          }
         } else {
-          console.error("Invalid response type from coins balance API");
+          const text = await coinsRes.text();
+          console.error(
+            "Invalid response type from coins balance API:",
+            text.substring(0, 100)
+          );
         }
+      } else {
+        console.error(
+          "Coins balance API error:",
+          coinsRes.status,
+          coinsRes.statusText
+        );
       }
     } catch (error) {
       console.error("Failed to fetch balance:", error);
@@ -153,7 +201,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
 
         toast({
           title: "Conversion successful! 🎉",
-          description: `Converted ${coinAmount} coins to ${data.pointsReceived.toFixed(2)} points (${data.secondsReceived} seconds)`,
+          description: `Converted ${coinAmount} coins to ${data.pointsReceived.toFixed(
+            2
+          )} points (${data.secondsReceived} seconds)`,
         });
 
         onBalanceUpdate?.();
@@ -199,7 +249,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
 
         toast({
           title: "Coins purchased! 🎉",
-          description: `Purchased ${data.coinsReceived.toFixed(2)} coins for ₹${amount}`,
+          description: `Purchased ${data.coinsReceived.toFixed(
+            2
+          )} coins for ₹${amount}`,
         });
 
         onBalanceUpdate?.();
@@ -236,7 +288,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
               <Wallet className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-300">Wallet Balance</h2>
+              <h2 className="text-lg font-semibold text-gray-300">
+                Wallet Balance
+              </h2>
               <p className="text-sm text-gray-400">Your available balance</p>
             </div>
           </div>
@@ -312,7 +366,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-yellow-300" />
-                <span className="text-sm font-medium text-yellow-300">Coins</span>
+                <span className="text-sm font-medium text-yellow-300">
+                  Coins
+                </span>
               </div>
             </div>
             <div className="flex items-baseline gap-2">
@@ -357,7 +413,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
                     {purchaseAmount && parseFloat(purchaseAmount) > 0 && (
                       <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">You will receive:</span>
+                          <span className="text-gray-600">
+                            You will receive:
+                          </span>
                           <div className="flex items-center gap-1">
                             <Coins className="h-4 w-4 text-yellow-600" />
                             <span className="font-bold text-yellow-600">
@@ -395,7 +453,11 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
                     </div>
                     <Button
                       onClick={handlePurchaseCoins}
-                      disabled={isPurchasing || !purchaseAmount || parseFloat(purchaseAmount) < 1}
+                      disabled={
+                        isPurchasing ||
+                        !purchaseAmount ||
+                        parseFloat(purchaseAmount) < 1
+                      }
                       className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white"
                     >
                       {isPurchasing ? "Processing..." : "Purchase Coins"}
@@ -436,7 +498,11 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
                     </div>
                     <Button
                       onClick={handleConvertCoins}
-                      disabled={isConverting || !convertAmount || parseFloat(convertAmount) < 1}
+                      disabled={
+                        isConverting ||
+                        !convertAmount ||
+                        parseFloat(convertAmount) < 1
+                      }
                       className="w-full"
                     >
                       {isConverting ? "Converting..." : "Convert Now"}
@@ -452,7 +518,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-gray-300" />
-                <span className="text-sm font-medium text-gray-300">Points</span>
+                <span className="text-sm font-medium text-gray-300">
+                  Points
+                </span>
               </div>
             </div>
             <div className="flex items-baseline gap-2">
@@ -469,7 +537,9 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-gray-300" />
-                <span className="text-sm font-medium text-gray-300">Chat Time</span>
+                <span className="text-sm font-medium text-gray-300">
+                  Chat Time
+                </span>
               </div>
             </div>
             <div className="flex items-baseline gap-2">
@@ -486,4 +556,3 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
     </motion.div>
   );
 }
-

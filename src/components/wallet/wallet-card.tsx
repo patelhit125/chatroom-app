@@ -31,16 +31,31 @@ export function WalletCard({ onBalanceUpdate }: WalletCardProps) {
 
   const fetchBalance = async () => {
     try {
-      const res = await fetch("/api/wallet/balance");
+      const res = await fetch("/api/wallet/balance", {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       if (res.ok) {
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
-          const data = await res.json();
-          setPoints(data.points);
-          setSeconds(data.seconds);
+          try {
+            const data = await res.json();
+            setPoints(data.points || 0);
+            setSeconds(data.seconds || 0);
+          } catch (parseError) {
+            console.error("Failed to parse balance response:", parseError);
+          }
         } else {
-          console.error("Invalid response type from balance API");
+          const text = await res.text();
+          console.error(
+            "Invalid response type from balance API:",
+            text.substring(0, 100)
+          );
         }
+      } else {
+        console.error("Balance API error:", res.status, res.statusText);
       }
     } catch (error) {
       console.error("Failed to fetch balance:", error);

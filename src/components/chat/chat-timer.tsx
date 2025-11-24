@@ -40,14 +40,21 @@ function ChatTimerComponent({
   // Fetch balance if active but remainingPoints is null
   useEffect(() => {
     if (isActive && remainingPoints === null) {
-      fetch("/api/wallet/balance")
+      fetch("/api/wallet/balance", {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
         .then((res) => {
           if (res.ok) {
             const contentType = res.headers.get("content-type");
             if (contentType && contentType.includes("application/json")) {
               return res.json();
             }
-            throw new Error("Invalid response type");
+            return res.text().then((text) => {
+              throw new Error(`Invalid response type: ${text.substring(0, 50)}`);
+            });
           }
           throw new Error(`HTTP error! status: ${res.status}`);
         })
