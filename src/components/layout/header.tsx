@@ -17,10 +17,10 @@ export function Header() {
           <div className="flex items-center justify-center w-10 h-10 bg-black rounded-full">
             <MessageCircle className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-xl font-bold">ChatApp</h1>
+          <h1 className="text-xl hidden sm:block font-bold">ChatApp</h1>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center sm:gap-4 gap-2">
           {session?.user && (
             <>
               <WalletCard />

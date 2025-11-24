@@ -33,9 +33,14 @@ export function WalletCard({ onBalanceUpdate }: WalletCardProps) {
     try {
       const res = await fetch("/api/wallet/balance");
       if (res.ok) {
-        const data = await res.json();
-        setPoints(data.points);
-        setSeconds(data.seconds);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setPoints(data.points);
+          setSeconds(data.seconds);
+        } else {
+          console.error("Invalid response type from balance API");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch balance:", error);
@@ -98,22 +103,29 @@ export function WalletCard({ onBalanceUpdate }: WalletCardProps) {
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-black to-gray-800 text-white rounded-lg p-1 shadow-md flex items-center gap-4"
+      className="bg-gradient-to-br from-black to-gray-800 text-white rounded-lg shadow-md flex items-center gap-2 sm:gap-4 p-1"
     >
       <Link
         href="/wallet"
-        className="flex items-center gap-2 hover:text-gray-800 transition-colors hover:bg-gray-100 rounded-sm p-1"
+        className="flex items-center gap-1.5 hover:opacity-80 transition-opacity rounded-sm p-1 min-w-0"
       >
-        <Wallet className="h-4 w-4" />
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs">Points</span>
-            <span className="text-sm font-bold">{formatPoints(points)}</span>
+        <Wallet className="h-4 w-4 flex-shrink-0" />
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Points - compact on mobile */}
+          <div className="flex items-center gap-0.5 sm:gap-1.5 min-w-0">
+            <span className="text-[10px] sm:text-xs hidden sm:inline">
+              Points
+            </span>
+            <span className="text-[11px] sm:text-sm font-bold whitespace-nowrap">
+              {formatPoints(points)}
+            </span>
           </div>
-          <div className="h-4 w-px bg-gray-600" />
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            <span className="text-xs font-medium">
+          {/* Divider - hide on very small screens */}
+          <div className="h-3 sm:h-4 w-px bg-gray-600/60 hidden sm:block flex-shrink-0" />
+          {/* Chat Time - compact on mobile */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Clock className="h-4 w-4 flex-shrink-0" />
+            <span className="text-[11px] sm:text-sm font-bold whitespace-nowrap">
               {formatSeconds(seconds)}
             </span>
           </div>
@@ -124,10 +136,10 @@ export function WalletCard({ onBalanceUpdate }: WalletCardProps) {
           <Button
             size="sm"
             variant="secondary"
-            className="h-7 px-2 text-xs rounded-sm"
+            className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs rounded-sm flex-shrink-0"
           >
-            <Plus className="h-3 w-3 mr-1" />
-            Recharge
+            <Plus className="h-3 w-3" />
+            <span className="hidden sm:inline sm:ml-1">Recharge</span>
           </Button>
         </DialogTrigger>
         <DialogContent>

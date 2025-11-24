@@ -8,7 +8,13 @@ export async function GET() {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { 
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
     }
 
     const result = await query<{ coins: string }>(
@@ -18,14 +24,18 @@ export async function GET() {
 
     const coins = parseFloat(result.rows[0]?.coins || "0");
 
-    return NextResponse.json({
-      coins,
-    });
+    return NextResponse.json(
+      { coins },
+      { headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Get coins balance error:", error);
     return NextResponse.json(
       { error: "Failed to fetch coins balance" },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      }
     );
   }
 }

@@ -41,9 +41,18 @@ function ChatTimerComponent({
   useEffect(() => {
     if (isActive && remainingPoints === null) {
       fetch("/api/wallet/balance")
-        .then((res) => res.json())
+        .then((res) => {
+          if (res.ok) {
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              return res.json();
+            }
+            throw new Error("Invalid response type");
+          }
+          throw new Error(`HTTP error! status: ${res.status}`);
+        })
         .then((data) => {
-          if (data.points !== undefined && typeof data.points === "number") {
+          if (data && data.points !== undefined && typeof data.points === "number") {
             const seconds = Math.max(
               0,
               Math.floor(data.points / POINTS_PER_SECOND)
@@ -132,17 +141,22 @@ function ChatTimerComponent({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setRechargeAmount("");
-        setIsRechargeDialogOpen(false);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setRechargeAmount("");
+          setIsRechargeDialogOpen(false);
 
-        toast({
-          title: "Recharge successful!",
-          description: `Added ₹${amount} to your wallet`,
-        });
+          toast({
+            title: "Recharge successful!",
+            description: `Added ₹${amount} to your wallet`,
+          });
 
-        // Reset the ended flag so timer can work again if chat is restarted
-        hasEndedRef.current = false;
+          // Reset the ended flag so timer can work again if chat is restarted
+          hasEndedRef.current = false;
+        } else {
+          throw new Error("Invalid response type");
+        }
       } else {
         throw new Error("Recharge failed");
       }

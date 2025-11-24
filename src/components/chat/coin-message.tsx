@@ -240,4 +240,3 @@ export function CoinMessage({ amount, netAmount, isOwn }: CoinMessageProps) {
     </motion.div>
   );
 }
-

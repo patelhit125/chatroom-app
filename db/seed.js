@@ -1,6 +1,8 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+
+dotenv.config({ path: ".env.local" });
 
 const personalities = [
   "Enthusiastic tech enthusiast who loves discussing gadgets and programming",

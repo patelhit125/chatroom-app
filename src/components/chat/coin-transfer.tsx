@@ -46,8 +46,13 @@ export function CoinTransfer({
     try {
       const res = await fetch("/api/coins/balance");
       if (res.ok) {
-        const data = await res.json();
-        setCoins(data.coins || 0);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setCoins(data.coins || 0);
+        } else {
+          console.error("Invalid response type from coins balance API");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch coins:", error);

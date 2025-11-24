@@ -41,14 +41,26 @@ export function WalletCardPage({ onBalanceUpdate }: WalletCardPageProps) {
         fetch("/api/wallet/balance"),
         fetch("/api/coins/balance"),
       ]);
+      
       if (balanceRes.ok) {
-        const data = await balanceRes.json();
-        setPoints(data.points);
-        setSeconds(data.seconds);
+        const contentType = balanceRes.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await balanceRes.json();
+          setPoints(data.points);
+          setSeconds(data.seconds);
+        } else {
+          console.error("Invalid response type from balance API");
+        }
       }
+      
       if (coinsRes.ok) {
-        const coinsData = await coinsRes.json();
-        setCoins(coinsData.coins || 0);
+        const contentType = coinsRes.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const coinsData = await coinsRes.json();
+          setCoins(coinsData.coins || 0);
+        } else {
+          console.error("Invalid response type from coins balance API");
+        }
       }
     } catch (error) {
       console.error("Failed to fetch balance:", error);

@@ -185,9 +185,18 @@ export function useWebSocket(userId: number | null) {
       // Fetch initial balance as fallback
       if (userId) {
         fetch("/api/wallet/balance")
-          .then((res) => res.json())
+          .then((res) => {
+            if (res.ok) {
+              const contentType = res.headers.get("content-type");
+              if (contentType && contentType.includes("application/json")) {
+                return res.json();
+              }
+              throw new Error("Invalid response type");
+            }
+            throw new Error(`HTTP error! status: ${res.status}`);
+          })
           .then((data) => {
-            if (data.points !== undefined) {
+            if (data && data.points !== undefined) {
               setRemainingPoints(data.points);
             }
           })
