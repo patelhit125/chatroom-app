@@ -4,11 +4,14 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
-    const isAuthPage = req.nextUrl.pathname.startsWith("/auth/signin");
+    const pathname = req.nextUrl.pathname;
+    const isAuthPage = pathname.startsWith("/auth/");
 
-    // If user is authenticated and trying to access sign-in page
+    // If user is authenticated and trying to access auth pages, redirect to home
     if (token && isAuthPage) {
-      return NextResponse.redirect(new URL("/", req.url));
+      const callbackUrl = req.nextUrl.searchParams.get("callbackUrl");
+      const redirectUrl = callbackUrl || "/";
+      return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
 
     return NextResponse.next();
@@ -16,6 +19,19 @@ export default withAuth(
   {
     pages: {
       signIn: "/auth/signin",
+    },
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+
+        // Always allow access to auth pages (they handle their own logic)
+        if (pathname.startsWith("/auth/")) {
+          return true;
+        }
+
+        // For protected routes, require token
+        return !!token;
+      },
     },
   }
 );

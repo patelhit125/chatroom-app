@@ -1,51 +1,65 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { MessageCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { MessageCircle } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      const callbackUrl = searchParams.get("callbackUrl") || "/";
+      router.push(callbackUrl);
+      router.refresh();
+    }
+  }, [status, session, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const result = await signIn('credentials', {
+      const callbackUrl = searchParams.get("callbackUrl") || "/";
+
+      const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result?.error) {
         toast({
-          title: 'Sign in failed',
-          description: 'Invalid email or password',
-          variant: 'destructive',
+          title: "Sign in failed",
+          description: "Invalid email or password",
+          variant: "destructive",
         });
-      } else {
-        router.push('/');
-        router.refresh();
+      } else if (result?.ok) {
+        // Use window.location for a full page reload to ensure session is set
+        window.location.href = callbackUrl;
       }
     } catch {
       toast({
-        title: 'Error',
-        description: 'Something went wrong',
-        variant: 'destructive',
+        title: "Error",
+        description: "Something went wrong",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -98,12 +112,8 @@ export default function SignInPage() {
               />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
@@ -118,4 +128,3 @@ export default function SignInPage() {
     </div>
   );
 }
-
