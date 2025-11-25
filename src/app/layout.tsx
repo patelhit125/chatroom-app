@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'ChatApp - Real-time Messaging',
-  description: 'Modern, minimal chat application with AI-powered conversations',
+  description: 'Modern, minimal chat application with real-time conversations',
 };
 
 export default function RootLayout({

@@ -11,9 +11,12 @@ export function Header() {
   const { data: session } = useSession();
 
   return (
-    <header className="bg-white border-b">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b">
       <div className="container mx-auto px-4 py-2 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
+        <Link
+          href={session?.user ? "/chat" : "/"}
+          className="flex items-center gap-2"
+        >
           <div className="flex items-center justify-center w-10 h-10 bg-black rounded-full">
             <MessageCircle className="h-5 w-5 text-white" />
           </div>

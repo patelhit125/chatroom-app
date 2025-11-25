@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { MessageCircle } from "lucide-react";
 
-function SignInForm() {
+export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,27 +20,15 @@ function SignInForm() {
     password: "",
   });
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (status === "authenticated" && session) {
-      const callbackUrl = searchParams.get("callbackUrl") || "/";
-      router.push(callbackUrl);
-      router.refresh();
-    }
-  }, [status, session, router, searchParams]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const callbackUrl = searchParams.get("callbackUrl") || "/";
-
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
         redirect: false,
-        callbackUrl,
       });
 
       if (result?.error) {
@@ -51,9 +37,9 @@ function SignInForm() {
           description: "Invalid email or password",
           variant: "destructive",
         });
-      } else if (result?.ok) {
-        // Use window.location for a full page reload to ensure session is set
-        window.location.href = callbackUrl;
+      } else {
+        router.push("/chat");
+        router.refresh();
       }
     } catch {
       toast({
@@ -126,22 +112,5 @@ function SignInForm() {
         </div>
       </motion.div>
     </div>
-  );
-}
-
-export default function SignInPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      }
-    >
-      <SignInForm />
-    </Suspense>
   );
 }

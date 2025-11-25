@@ -1,255 +1,73 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { ActiveUsersList } from "@/components/chat/active-users-list";
-import { ChatWindow } from "@/components/chat/chat-window";
-import { WalletCard } from "@/components/wallet/wallet-card";
-import { useWebSocket, ActiveUser, Message } from "@/lib/websocket/client";
-import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  MessageCircle,
+  Zap,
+  Users,
+  Shield,
+  Clock,
+  Wallet,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-const MESSAGE_PAGE_SIZE = 30;
+const features = [
+  {
+    icon: MessageCircle,
+    title: "Real-time Messaging",
+    description:
+      "Instant, seamless conversations powered by WebSocket technology",
+  },
+  {
+    icon: Users,
+    title: "Active Users",
+    description: "See who's online and connect with friends instantly",
+  },
+  {
+    icon: Wallet,
+    title: "Wallet System",
+    description: "Simple points-based system: ₹50 = 50 Points = 5 Minutes",
+  },
+  {
+    icon: Shield,
+    title: "Secure & Private",
+    description:
+      "End-to-end security with read receipts and message confirmation",
+  },
+];
 
-function mergeMessages(
-  existing: Message[],
-  incoming: Message[],
-  append: boolean
-) {
-  const combined = append
-    ? [...incoming, ...existing]
-    : [...existing, ...incoming];
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
 
-  const map = new Map<number, Message>();
-  for (const message of combined) {
-    map.set(message.id, message);
-  }
-
-  return Array.from(map.values()).sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-}
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
+  },
+};
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [selectedUser, setSelectedUser] = useState<ActiveUser | null>(null);
-  const [isMobileView, setIsMobileView] = useState(false);
-  const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const [isFetchingOlder, setIsFetchingOlder] = useState(false);
-  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
-  const [chatStartTime, setChatStartTime] = useState<string | null>(null);
-
-  const userId = session?.user?.id ? parseInt(session.user.id) : null;
-
-  const {
-    isConnected,
-    activeUsers,
-    activeUsersHasMore,
-    isLoadingActiveUsers,
-    messages,
-    isTyping,
-    currentSessionId,
-    initiateChat,
-    sendMessage,
-    sendTyping,
-    stopTyping,
-    endChat,
-    setMessages,
-    setCurrentSessionId,
-    loadMoreActiveUsers,
-    remainingPoints,
-  } = useWebSocket(userId);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    // Check window size
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Initialize dummy users on mount
-  useEffect(() => {
-    const initDummyUsers = async () => {
-      try {
-        await fetch("/api/users/init-dummy", { method: "POST" });
-      } catch (error) {
-        console.error("Failed to init dummy users:", error);
-      }
-    };
-
-    if (userId) {
-      initDummyUsers();
-    }
-  }, [userId]);
-
-  const fetchMessages = useCallback(
-    async ({
-      userId: targetUserId,
-      before,
-      append = false,
-    }: {
-      userId: number;
-      before?: string | null;
-      append?: boolean;
-    }) => {
-      try {
-        const params = new URLSearchParams({
-          userId: targetUserId.toString(),
-          limit: MESSAGE_PAGE_SIZE.toString(),
-        });
-
-        if (before) {
-          params.append("before", before);
-        }
-
-        const res = await fetch(`/api/chat/messages?${params.toString()}`);
-        if (!res.ok) {
-          throw new Error("Failed to fetch messages");
-        }
-
-        const data = await res.json();
-        const fetchedMessages: Message[] = data.messages ?? [];
-
-        setMessages((prev) => mergeMessages(prev, fetchedMessages, append));
-
-        if (fetchedMessages.length > 0) {
-          setOldestCursor(fetchedMessages[0].created_at);
-        } else if (!append) {
-          setOldestCursor(null);
-        }
-
-        setHasMoreMessages(Boolean(data.hasMore));
-      } catch (error) {
-        console.error("Failed to fetch messages:", error);
-      }
-    },
-    [setMessages]
-  );
-
-  // Fetch session info when selectedUser or currentSessionId changes
-  useEffect(() => {
-    const fetchSession = async () => {
-      if (!selectedUser || !userId) {
-        setChatStartTime(null);
-        return;
-      }
-
-      // If currentSessionId is null, clear chatStartTime
-      if (!currentSessionId) {
-        setChatStartTime(null);
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/chat/session?userId=${selectedUser.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (
-            data.session &&
-            data.session.status === "active" &&
-            data.session.id === currentSessionId
-          ) {
-            setChatStartTime(data.session.started_at);
-          } else {
-            setChatStartTime(null);
-            setCurrentSessionId(null);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch session:", error);
-        setChatStartTime(null);
-      }
-    };
-
-    fetchSession();
-  }, [selectedUser, currentSessionId, userId, setCurrentSessionId]);
-
-  const handleSelectUser = useCallback(
-    async (user: ActiveUser) => {
-      setSelectedUser(user);
-      setMessages([]);
-      setHasMoreMessages(true);
-      setOldestCursor(null);
-      setChatStartTime(null);
-
-      await fetchMessages({ userId: user.id });
-    },
-    [fetchMessages, setMessages]
-  );
-
-  const handleStartChat = useCallback(() => {
-    if (selectedUser) {
-      initiateChat(selectedUser.id);
-    }
-  }, [selectedUser, initiateChat]);
-
-  const handleEndChat = useCallback(() => {
-    if (currentSessionId) {
-      endChat();
-      setChatStartTime(null);
-      setCurrentSessionId(null);
-    }
-  }, [endChat, currentSessionId, setCurrentSessionId]);
-
-  const handleLoadOlderMessages = useCallback(async () => {
-    if (!selectedUser || !hasMoreMessages || isFetchingOlder || !oldestCursor) {
-      return;
-    }
-
-    setIsFetchingOlder(true);
-    try {
-      await fetchMessages({
-        userId: selectedUser.id,
-        before: oldestCursor,
-        append: true,
-      });
-    } finally {
-      setIsFetchingOlder(false);
-    }
-  }, [
-    selectedUser,
-    hasMoreMessages,
-    isFetchingOlder,
-    oldestCursor,
-    fetchMessages,
-  ]);
-
-  const handleSendMessage = (content: string) => {
-    if (selectedUser) {
-      sendMessage(content, selectedUser.id);
-    }
-  };
-
-  const handleTyping = () => {
-    if (selectedUser) {
-      sendTyping(selectedUser.id);
-    }
-  };
-
-  const handleStopTyping = () => {
-    if (selectedUser) {
-      stopTyping(selectedUser.id);
-    }
-  };
-
-  const handleBack = () => {
-    setSelectedUser(null);
-    setMessages([]);
-    setHasMoreMessages(true);
-    setOldestCursor(null);
-  };
 
   if (status === "loading") {
     return (
@@ -259,91 +77,172 @@ export default function HomePage() {
     );
   }
 
-  if (!session) {
-    return null;
-  }
-
-  const showChat = selectedUser && (isMobileView ? true : true);
-  const showSidebar = !isMobileView || !selectedUser;
+  const isAuthenticated = status === "authenticated";
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Sidebar */}
-      {showSidebar && (
-        <motion.div
-          initial={false}
-          animate={{ x: 0 }}
-          className="w-full md:w-80 border-r bg-white flex flex-col"
-        >
-          <div className="p-4 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Active Users</h2>
-              <div className="text-xs text-gray-500 flex items-center gap-2 mb-2">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? "bg-green-500" : "bg-red-500"
-                  }`}
-                />
-                {isConnected ? "Connected" : "Connecting..."}
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white" />
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
+            className="max-w-4xl mx-auto text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-black rounded-3xl mb-8 shadow-lg"
+            >
+              <MessageCircle className="h-10 w-10 text-white" />
+            </motion.div>
 
-          <div className="flex-1 overflow-hidden">
-            <ActiveUsersList
-              users={activeUsers}
-              onSelectUser={handleSelectUser}
-              selectedUserId={selectedUser?.id || null}
-              hasMore={activeUsersHasMore}
-              onLoadMore={loadMoreActiveUsers}
-              isLoading={isLoadingActiveUsers}
-            />
-          </div>
-        </motion.div>
-      )}
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 tracking-tight">
+              <span className="block">Connect.</span>
+              <span className="block text-gray-400">Chat.</span>
+              <span className="block">Thrive.</span>
+            </h1>
 
-      {/* Chat Area */}
-      {showChat && selectedUser && userId ? (
-        <div className="flex-1 overflow-hidden">
-          <ChatWindow
-            user={selectedUser}
-            messages={messages}
-            currentUserId={userId}
-            isTyping={isTyping}
-            onSendMessage={handleSendMessage}
-            onTyping={handleTyping}
-            onStopTyping={handleStopTyping}
-            onBack={handleBack}
-            hasMore={hasMoreMessages}
-            onLoadMore={handleLoadOlderMessages}
-            isLoadingMore={isFetchingOlder}
-            currentSessionId={currentSessionId}
-            onStartChat={handleStartChat}
-            onEndChat={handleEndChat}
-            chatStartTime={chatStartTime}
-            remainingPoints={remainingPoints}
-          />
-        </div>
-      ) : !isMobileView ? (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="text-gray-400 mb-4">
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                💬
-              </motion.div>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">
-              Select a user to start chatting
-            </h3>
-            <p className="text-gray-500 text-sm">
-              Choose from active users on the left
+            <p className="text-xl sm:text-2xl text-gray-500 mb-12 max-w-2xl mx-auto leading-relaxed">
+              Experience the future of messaging with real-time conversations
+              and seamless connectivity.
             </p>
-          </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
+              <Button
+                onClick={() =>
+                  router.push(isAuthenticated ? "/chat" : "/auth/signup")
+                }
+                size="lg"
+                className="group relative overflow-hidden bg-black text-white hover:bg-gray-900 px-8 py-6 text-lg font-medium rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {isAuthenticated ? "Go to Chat" : "Get Started"}
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </span>
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900"
+                  initial={{ x: "-100%" }}
+                  whileHover={{ x: 0 }}
+                  transition={{ duration: 0.3 }}
+                />
+              </Button>
+            </motion.div>
+
+            {!isAuthenticated && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-6 text-sm text-gray-400"
+              >
+                Already have an account?{" "}
+                <Link
+                  href="/auth/signin"
+                  className="text-black font-medium hover:underline"
+                >
+                  Sign in
+                </Link>
+              </motion.p>
+            )}
+          </motion.div>
         </div>
-      ) : null}
+      </section>
+
+      {/* Features Section */}
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tight">
+              Everything you need
+            </h2>
+            <p className="text-xl text-gray-500 max-w-2xl mx-auto">
+              Powerful features designed for seamless communication
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto"
+          >
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <motion.div
+                  key={index}
+                  variants={itemVariants}
+                  whileHover={{ y: -4 }}
+                  className="group p-6 rounded-2xl border border-gray-100 hover:border-gray-200 bg-white hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gray-50 group-hover:bg-black flex items-center justify-center mb-4 transition-colors duration-300">
+                    <Icon className="h-6 w-6 text-gray-600 group-hover:text-white transition-colors duration-300" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-3xl mx-auto text-center"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold mb-6 tracking-tight">
+              Ready to get started?
+            </h2>
+            <p className="text-xl text-gray-500 mb-8">
+              Join thousands of users already connecting on ChatApp
+            </p>
+            <Button
+              onClick={() =>
+                router.push(isAuthenticated ? "/chat" : "/auth/signup")
+              }
+              size="lg"
+              className="group relative overflow-hidden bg-black text-white hover:bg-gray-900 px-8 py-6 text-lg font-medium rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {isAuthenticated ? "Start Chatting Now" : "Get Started"}
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </span>
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: 0 }}
+                transition={{ duration: 0.3 }}
+              />
+            </Button>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

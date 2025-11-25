@@ -197,7 +197,9 @@ export function useWebSocket(userId: number | null) {
                 return res.json();
               }
               return res.text().then((text) => {
-                throw new Error(`Invalid response type: ${text.substring(0, 50)}`);
+                throw new Error(
+                  `Invalid response type: ${text.substring(0, 50)}`
+                );
               });
             }
             throw new Error(`HTTP error! status: ${res.status}`);

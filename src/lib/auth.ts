@@ -1,20 +1,20 @@
-import { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
-import bcrypt from 'bcryptjs';
-import { query } from './db';
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import bcrypt from "bcryptjs";
+import { query } from "./db";
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: 'credentials',
+      name: "credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Invalid credentials');
+          throw new Error("Invalid credentials");
         }
 
         const result = await query<{
@@ -23,15 +23,12 @@ export const authOptions: NextAuthOptions = {
           name: string;
           password_hash: string | null;
           image: string | null;
-        }>(
-          'SELECT * FROM users WHERE email = $1',
-          [credentials.email]
-        );
+        }>("SELECT * FROM users WHERE email = $1", [credentials.email]);
 
         const user = result.rows[0];
 
         if (!user || !user.password_hash) {
-          throw new Error('Invalid credentials');
+          throw new Error("Invalid credentials");
         }
 
         const isValidPassword = await bcrypt.compare(
@@ -40,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isValidPassword) {
-          throw new Error('Invalid credentials');
+          throw new Error("Invalid credentials");
         }
 
         return {
@@ -52,28 +49,28 @@ export const authOptions: NextAuthOptions = {
       },
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
   ],
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === 'google') {
+      if (account?.provider === "google") {
         // Check if user exists, if not create
         const existingUser = await query<{ id: number }>(
-          'SELECT * FROM users WHERE email = $1',
+          "SELECT * FROM users WHERE email = $1",
           [user.email]
         );
 
         if (existingUser.rows.length === 0) {
           const newUser = await query<{ id: number }>(
-            'INSERT INTO users (email, name, image, email_verified) VALUES ($1, $2, $3, NOW()) RETURNING *',
+            "INSERT INTO users (email, name, image, email_verified) VALUES ($1, $2, $3, NOW()) RETURNING *",
             [user.email, user.name, user.image]
           );
-          
+
           // Create wallet for new user
           await query(
-            'INSERT INTO wallet_balance (user_id, points) VALUES ($1, 0)',
+            "INSERT INTO wallet_balance (user_id, points) VALUES ($1, 0)",
             [newUser.rows[0].id]
           );
         }
@@ -94,11 +91,10 @@ export const authOptions: NextAuthOptions = {
     },
   },
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   pages: {
-    signIn: '/auth/signin',
+    signIn: "/auth/signin",
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
-

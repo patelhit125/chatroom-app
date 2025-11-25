@@ -7,3 +7,5 @@ ALTER TABLE chat_sessions DROP CONSTRAINT IF EXISTS unique_active_session;
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_users_status 
 ON chat_sessions(user1_id, user2_id, status);
 
+
+
